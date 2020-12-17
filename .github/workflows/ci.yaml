@@ -1,0 +1,29 @@
+name: CI
+on:
+  workflow_dispatch:
+   inputs:
+      logLevel:
+        description: 'Log level'     
+        required: true
+        default: 'warning'
+      tags:
+        description: 'Test scenario tags'  
+  release:
+    types: [published]
+  push:
+    branches:
+      - main
+    tags:
+      - '*'  
+jobs:
+  release-db-migration:
+    runs-on: ubuntu-latest
+    steps:
+
+      - name: Show Github Event  
+        env:
+          github: ${{ toJSON(github) }}
+          event: ${{ toJSON(github.event) }}
+        run: |
+          echo $event
+          echo $github
