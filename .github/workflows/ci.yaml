@@ -2,12 +2,10 @@ name: CI
 on:
   workflow_dispatch:
    inputs:
-      logLevel:
-        description: 'Log level'     
-        required: true
-        default: 'warning'
-      tags:
-        description: 'Test scenario tags'  
+      tag:
+          description: 'tag or sha to run job on'
+          required: true
+          default: ''
   release:
     types: [published]
   push:
@@ -16,14 +14,47 @@ on:
     tags:
       - '*'  
 jobs:
-  release-db-migration:
+  test-github-workflows:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        if: ${{ contains(github.event_name, 'release') }}
+        uses: actions/checkout@v2
+
+      - name: Checkout
+        if: ${{ contains(github.event_name, 'workflow_dispatch') }}
+        uses: actions/checkout@v2
+        with:
+          ref: ${{ github.event.inputs.tag }}
+
+      - name: docker image tags
+        id: tags
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          IMAGE=ghcr.io/bilelkhalsi/ioservices/service-db-migration
+          REF=${{ github.sha }}
+          TAGS="${IMAGE}:${REF}"
+          if [$EVENT == 'release']
+          then
+            RELEASE=${{ github.event.release.tag_name }}
+            TAGS="${TAGS},${IMAGE}:${RELEASE},${IMAGE}:latest"
+            echo "Release event : ${RELEASE}"
+          elif [ $EVENT == 'workflow_dispatch' ]
+          then
+            TAG=${{ github.event.inputs.tag }}
+            TAGS="${TAGS},${IMAGE}:${TAG}"
+            echo "Manually running on tag  : ${TAG}"
+          else
+            echo " Push event : ${REF}"
+          fi
+          echo ::set-output name=tags::${TAGS}
 
       - name: Show Github Event  
         env:
           github: ${{ toJSON(github) }}
           event: ${{ toJSON(github.event) }}
+          tags:  ${{ steps.tags.outputs.tags }}
         run: |
-          echo $event
-          echo $github
+          echo $tags
+          
